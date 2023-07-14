@@ -1,0 +1,9 @@
+
+Important:
+    - Posicio a dalt a l'esquerra (0.0) i a baix a la dreta (59,59).
+    - Inicialment -> força d'un clan = punts força / unitats vives.
+    - A cada ronda -> els punts de forca d'un clan es decrementaran en una quantitat igual al nombre d'unitats vives d'aquest clan.
+    - Per incrementat força -> menjar.
+    - Cada ronda, amb un 20% de probabilitat, una unitat del clan amb mes unitats vives passa aformar part del clan amb 
+      menys unitats vives. En cas d'haver-hi diferents clansamb aquestes propietats, se'n selecciona un d'ells de forma aleatòria.
+

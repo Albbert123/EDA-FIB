@@ -1,0 +1,190 @@
+#include "Player.hh"
+
+
+/**
+ * Write the name of your player and save this file
+ * with the same name and .cc extension.
+ */
+#define PLAYER_NAME Berto
+
+
+struct PLAYER_NAME : public Player {
+
+  /**
+   * Factory: returns a new instance of this class.
+   * Do not modify this function.
+   */
+  static Player* factory () {
+    return new PLAYER_NAME;
+  }
+
+  /**
+   * Types and attributes for your player can be defined here.
+   */
+
+  const vector<Dir> dirs = {Up,Down,Left,Right};
+
+  typedef vector<vector<CellType>> Tauler;
+
+  typedef vector<vector<int>> Dist;
+
+  Dir bfs_menjar(int i, int j, int& dist) { //dist minima a menjar
+    // i j posicio del jugador, id de jugador
+    queue<Pos> q; //coord
+    Dist d(board_rows(),vector<int>(board_cols(),-1)); //dist a -1
+    q.push(Pos(i,j));
+    d[i][j] = 0; //comensament
+    Dir dir = dirs[random(0,dirs.size()-1)];
+    while(not q.empty()) {
+      Pos p = q.front();
+      q.pop();
+      for(int a = 0; a<4; ++a) {
+        dir = dirs[a];
+        Pos n_pos = p + dir;
+        if (pos_ok(n_pos) and cell(n_pos.i,n_pos.j).type != Waste and d[n_pos.i][n_pos.j] == -1) {
+          q.push(n_pos);
+          d[n_pos.i][n_pos.j] = d[p.i][p.j] +1;
+          if(cell(n_pos.i,n_pos.j).food) {
+            dist = d[n_pos.i][n_pos.j];
+            return dir;
+          }
+        }
+      }
+    }
+    dist = -1;
+    return dir;
+  }
+
+Dir bfs_zombie(int i, int j,int& dist) { //dist minima a zombie
+    // i j posicio del jugador, id de jugador
+    queue<Pos> q; //coord
+    Dist d(board_rows(),vector<int>(board_cols(),-1)); //dist a -1
+    q.push(Pos(i,j));
+    d[i][j] = 0; //comensament
+    Dir dir = dirs[random(0,dirs.size()-1)];
+    while(not q.empty()) {
+      Pos p = q.front();
+      q.pop();
+      for(int a = 0; a<4; ++a) {
+        dir = dirs[a];
+        Pos n_pos = p + dir;
+        if (pos_ok(n_pos) and cell(n_pos.i,n_pos.j).type != Waste and d[n_pos.i][n_pos.j] == -1) {
+          q.push(n_pos);
+          d[n_pos.i][n_pos.j] = d[p.i][p.j] +1;
+          int id_in_cell = cell(n_pos.i,n_pos.j).id;
+          if (id_in_cell != -1 and unit(id_in_cell).type == Zombie) {
+            dist = d[n_pos.i][n_pos.j];
+            return dir;
+          }
+        }
+      }
+    }
+    dist = -1;
+    return dir;
+  }
+
+  Dir bfs_dummy(int i, int j,int& dist) { //dist minima a dummy
+    // i j posicio del jugador, id de jugador
+    queue<Pos> q; //coord
+    Dist d(board_rows(),vector<int>(board_cols(),-1)); //dist a -1
+    q.push(Pos(i,j));
+    d[i][j] = 0; //comensament
+    Dir dir = dirs[random(0,dirs.size()-1)];
+    while(not q.empty()) {
+      Pos p = q.front();
+      q.pop();
+      for(int a = 0; a<4; ++a) {
+        dir = dirs[a];
+        Pos n_pos = p + dir;
+        if (pos_ok(n_pos) and cell(n_pos.i,n_pos.j).type != Waste and d[n_pos.i][n_pos.j] == -1) {
+          q.push(n_pos);
+          d[n_pos.i][n_pos.j] = d[p.i][p.j] + 1;
+          int id_in_cell = cell(n_pos.i,n_pos.j).id;
+          if (id_in_cell != -1 and unit(id_in_cell).type == Alive) {
+            dist = d[n_pos.i][n_pos.j];
+            return dir;
+          }
+        }
+      }
+    }
+    dist = -1;
+    return dir;
+  }
+
+//HAS DE FER VECTOR<DIR> BFS I COM A PARAMETRE DE SORTIDA LA DISTANCIA
+
+  /**
+   * Play method, invoked once per each round.
+   */
+  virtual void play () {
+    
+    // If nearly out of time, do nothing.
+    double st = status(me());
+    if (st >= 0.9) return;
+
+    // Getting the alive units
+    vector<int> alive = alive_units(me());
+
+    int n = alive.size();
+
+    for (int id : alive) {
+      int dist_menjar;
+      int dist_zombie;
+      int dist_dummy;
+      Pos pos_p = unit(id).pos;
+      Dir dir_menjar = bfs_menjar(pos_p.i, pos_p.j,dist_menjar);
+      Dir dir_zombie = bfs_zombie(pos_p.i, pos_p.j,dist_zombie);
+      Dir dir_dummy = bfs_dummy(pos_p.i, pos_p.j,dist_dummy);
+
+      if(dist_zombie!= -1 and dist_menjar!=-1 and dist_zombie<=dist_menjar) { //ves cap a zombie proper
+        Pos new_pos = unit(id).pos + dir_zombie;
+        if (pos_ok(new_pos)) {
+          int id_in_cell = cell(new_pos.i,new_pos.j).id;
+          if (id_in_cell != -1 and unit(id_in_cell).type == Zombie) {
+            move(id,dir_zombie); 
+            
+          }
+        }
+      }
+
+      else if(dist_dummy!=-1 and dist_zombie!=-1 and dist_dummy<=dist_zombie) { //ves cap a dummy proper
+        Pos new_pos = unit(id).pos + dir_dummy;
+        if (pos_ok(new_pos)) {
+          int id_in_cell = cell(new_pos.i,new_pos.j).id;
+          if (id_in_cell != -1 and unit(id_in_cell).type == Alive) {
+            move(id,dir_dummy); 
+             
+          }
+        }
+      }
+
+      else if(dist_menjar!=-1) { //busca menjar
+        Pos new_pos = unit(id).pos + dir_menjar;
+        if (pos_ok(new_pos)) {
+          if (cell(new_pos.i,new_pos.j).food) {
+            move(id,dir_menjar); 
+            
+          }
+        }
+      }
+
+      else { //random
+        Dir d = dirs[random(0,dirs.size()-1)];
+        Pos new_pos = unit(id).pos + d;
+        bool primer = true;
+        while ((not pos_ok(new_pos) or cell(new_pos.i,new_pos.j).type == Waste or cell(new_pos.i,new_pos.j).owner == me()) and primer) {
+          d = dirs[random(0,dirs.size()-1)];
+          new_pos = unit(id).pos + d;
+          primer = false;
+        }
+        move(id,d);
+      }
+    }
+  }
+};
+
+
+/**
+ * Do not modify the following line.
+ */
+RegisterPlayer(PLAYER_NAME);

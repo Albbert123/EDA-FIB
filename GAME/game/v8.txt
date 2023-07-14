@@ -1,0 +1,192 @@
+#include "Player.hh"
+
+
+/**
+ * Write the name of your player and save this file
+ * with the same name and .cc extension.
+ */
+#define PLAYER_NAME Berto
+
+
+struct PLAYER_NAME : public Player {
+
+  /**
+   * Factory: returns a new instance of this class.
+   * Do not modify this function.
+   */
+  static Player* factory () {
+    return new PLAYER_NAME;
+  }
+
+  /**
+   * Types and attributes for your player can be defined here.
+   */
+
+  const vector<Dir> dirs = {Up,Down,Left,Right};
+
+  typedef vector<vector<CellType>> Tauler;
+
+  typedef vector<vector<int>> Dist;
+
+  int bfs_menjar(Pos pos, Dir& dir) { //dist minima a menjar
+    // POS posicio del jugador
+    queue<Pos> q; //coord
+    Dist d(board_rows(),vector<int>(board_cols(),-1)); //dist a -1
+    q.push(pos);
+    d[pos.i][pos.j] = 0; //comensament
+    while(not q.empty()) {
+      Pos p = q.front();
+      q.pop();
+      for(int a = 0; a<4; ++a) {
+        dir = dirs[a]; //problema si no entra al if
+        Pos n_pos = p + dir;
+        if (pos_ok(n_pos) and cell(n_pos.i,n_pos.j).type != Waste and d[n_pos.i][n_pos.j] == -1) {
+          q.push(n_pos);
+          d[n_pos.i][n_pos.j] = d[p.i][p.j] +1;
+          if(cell(n_pos.i,n_pos.j).food) return d[n_pos.i][n_pos.j];
+        }
+      }
+    }
+    //dir = dirs[random(0,dirs.size()-1)];
+    return -1;
+  }
+
+
+  int bfs_zombie(Pos pos, Pos& n_pos, Dir& dir) { //dist minima a zombie
+    // pos posicio del jugador, id de jugador
+    queue<Pos> q; //coord
+    Dist d(board_rows(),vector<int>(board_cols(),-1)); //dist a -1
+    q.push(pos);
+    d[pos.i][pos.j] = 0; //comensament
+    while(not q.empty()) {
+      Pos p = q.front();
+      q.pop();
+      for(int a = 0; a<4; ++a) {
+        dir = dirs[a];
+        n_pos = p + dir;
+        if (pos_ok(n_pos) and cell(n_pos.i,n_pos.j).type != Waste and d[n_pos.i][n_pos.j] == -1) {
+          q.push(n_pos);
+          d[n_pos.i][n_pos.j] = d[p.i][p.j] +1;
+          int id_in_cell = cell(n_pos.i,n_pos.j).id;
+          if (id_in_cell != -1 and unit(id_in_cell).type == Zombie) return d[n_pos.i][n_pos.j];
+        }
+      }
+    }
+    //dir = dirs[random(0,dirs.size()-1)];
+    return -1;
+  }
+  
+
+  int bfs_dummy(Pos pos, Pos& n_pos, Dir& dir) { //dist minima a dummy
+    // Pos posicio del jugador, id de jugador
+    queue<Pos> q; //coord
+    Dist d(board_rows(),vector<int>(board_cols(),-1)); //dist a -1
+    q.push(pos);
+    d[pos.i][pos.j] = 0; //comensament
+    while(not q.empty()) {
+      Pos p = q.front();
+      q.pop();
+      for(int a = 0; a<4; ++a) {
+        dir = dirs[a];
+        n_pos = p + dir;
+        if (pos_ok(n_pos) and cell(n_pos.i,n_pos.j).type != Waste and d[n_pos.i][n_pos.j] == -1) {
+          q.push(n_pos);
+          d[n_pos.i][n_pos.j] = d[p.i][p.j] + 1;
+          int id_in_cell = cell(n_pos.i,n_pos.j).id;
+          //strength(unit(id_in_cell).player)<=strength(me())
+          if (id_in_cell != -1 and unit(id_in_cell).type == Alive and unit(id_in_cell).player!=me()) return d[n_pos.i][n_pos.j];
+        }
+      }
+    }
+    return -1;
+  }
+  /*
+  bool hay_zombie_dist2(Pos UU, Pos DD, Pos RR, Pos LL, Pos z) {
+    if(UU==z or DD==z or RR==z or LL==z) return true;
+    else return false;
+  }
+
+  
+  bool hay_zombie_diago(Pos LD, Pos UL, Pos DR, Pos RU, Pos z){
+    if(LD==z or UL==z or DR==z or RU==z) return true;
+    else return false;
+  }
+
+  Dir zombie_diago(Pos LD, Pos UL, Pos DR, Pos RU, Pos z) {
+    if(LD==z) return Right;
+    else if(UL==z) return Right;
+    else if(DR==z) return Left;
+    else return Left;
+  }
+*/
+
+  /**
+   * Play method, invoked once per each round.
+   */
+  
+  virtual void play () {
+    
+    // If nearly out of time, do nothing.
+    double st = status(me());
+    if (st >= 0.9) return;
+
+    // Getting the alive units
+    vector<int> alive = alive_units(me());
+
+    for (int id : alive) {
+      Pos pos_act_p = unit(id).pos;
+      Pos pos_dummy = unit(id).pos; //ini a qualsevol
+      Pos pos_zombie;
+      Dir dir_menjar;
+      Dir dir_zombie=Up;//ini a qualsevol
+      Dir dir_dummy=Up;//ini a qualsevol
+      int d_menjar = bfs_menjar(pos_act_p,dir_menjar);
+      int d_zombie = bfs_zombie(pos_act_p,pos_zombie,dir_zombie); 
+      int d_dummy = bfs_dummy(pos_act_p,pos_dummy,dir_dummy);
+/*
+      vector<Pos> diagz = {pos_act_p + LD, pos_act_p + UL, pos_act_p + DR, pos_act_p + RU};
+      vector<Pos> frentz = {pos_act_p+Up+Up, pos_act_p+Down+Down, pos_act_p+Right+Right, pos_act_p+Left+Left};
+      Dir zd = zombie_diago(diagz[0],diagz[1],diagz[2],diagz[3],pos_zombie);
+*/
+
+      int id_in_cell = cell(pos_dummy).id;
+      int fuerza_enemigo = strength(unit(id_in_cell).player);
+      int mi_fuerza = strength(me());
+
+
+      if(d_dummy!=-1 and d_dummy<10 and d_menjar>d_dummy and d_zombie>d_dummy and mi_fuerza>=fuerza_enemigo) { //mata adjacent dummy
+        
+        move(id,dir_dummy); 
+      }
+
+      else if(d_zombie!=-1 and d_zombie<10 and d_menjar>d_zombie and d_zombie!=2) { //mata adjacent zombie
+        //if(hay_zombie_diago(dz[0],dz[1],dz[2],dz[3],pos_zombie)) move(id,zd);
+        move(id,dir_zombie); 
+      }
+
+      else if(d_menjar!=-1 and d_menjar<10 and d_dummy>2) { //busca menjar
+        
+        move(id,dir_menjar); 
+      }
+      
+      else { //random
+        for(auto d:dirs) {
+          Pos new_pos = unit(id).pos + d;
+          if (pos_ok(new_pos) and cell(new_pos.i,new_pos.j).type != Waste and cell(new_pos.i,new_pos.j).owner != me()) {
+            move(id,d);
+            break;
+          }
+        }
+        Dir d = dirs[random(0,dirs.size()-1)];
+        Pos new_pos = unit(id).pos + d;
+        if (pos_ok(new_pos) and cell(new_pos.i,new_pos.j).type != Waste) move(id,d);
+      }
+    }
+  }
+};
+
+
+/**
+ * Do not modify the following line.
+ */
+RegisterPlayer(PLAYER_NAME);
